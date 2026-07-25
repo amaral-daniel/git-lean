@@ -48,7 +48,8 @@ export function activate(context: vscode.ExtensionContext) {
     };
 
     updateStatusBar();
-    repoManager.onDidChangeRepository(() => updateStatusBar());
+    context.subscriptions.push(repoManager.onDidChangeRepository(() => updateStatusBar()));
+    context.subscriptions.push(repoManager.onDidChangeRepositories(() => updateStatusBar()));
     context.subscriptions.push(statusBarItem);
 
     // Command to select repository
