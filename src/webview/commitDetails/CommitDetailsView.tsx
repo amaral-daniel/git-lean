@@ -2,6 +2,9 @@ import React, { useState } from 'react';
 
 interface FileDiff {
     filePath: string;
+    oldFilePath: string;
+    isNew: boolean;
+    isDeleted: boolean;
     added: number;
     removed: number;
     lines: string[];
@@ -23,6 +26,9 @@ function parsePatch(patch: string): FileDiff[] {
             const filePath = match ? match[2] : lines[0];
             let added = 0,
                 removed = 0;
+            let isNew = false;
+            let isDeleted = false;
+            let oldFilePath = filePath;
             lines.forEach((line) => {
                 if (line.startsWith('+') && !line.startsWith('+++')) {
                     added++;
@@ -30,8 +36,17 @@ function parsePatch(patch: string): FileDiff[] {
                 if (line.startsWith('-') && !line.startsWith('---')) {
                     removed++;
                 }
+                if (line.startsWith('new file mode')) {
+                    isNew = true;
+                    oldFilePath = '';
+                } else if (line.startsWith('deleted file mode')) {
+                    isDeleted = true;
+                    oldFilePath = filePath;
+                } else if (line.startsWith('rename from ')) {
+                    oldFilePath = line.slice('rename from '.length);
+                }
             });
-            return { filePath, added, removed, lines };
+            return { filePath, oldFilePath, isNew, isDeleted, added, removed, lines };
         });
 }
 
@@ -48,13 +63,26 @@ function DiffLine({ line }: { line: string }) {
     return <span className="diff-line diff-ctx">{line}</span>;
 }
 
-function FileDiffBlock({ diff }: { diff: FileDiff }) {
+function FileDiffBlock({
+    diff,
+    onOpenFileDiff,
+}: {
+    diff: FileDiff;
+    onOpenFileDiff?: (filePath: string, oldFilePath: string, isNew: boolean, isDeleted: boolean) => void;
+}) {
     const hunkStart = diff.lines.findIndex((line) => line.startsWith('@@'));
     const hunkLines = hunkStart === -1 ? [] : diff.lines.slice(hunkStart);
 
+    const handleSummaryClick = (e: React.MouseEvent) => {
+        if (onOpenFileDiff) {
+            e.preventDefault();
+            onOpenFileDiff(diff.filePath, diff.oldFilePath, diff.isNew, diff.isDeleted);
+        }
+    };
+
     return (
         <details open>
-            <summary>
+            <summary style={onOpenFileDiff ? { cursor: 'pointer' } : undefined} onClick={handleSummaryClick}>
                 <span className="chevron">&#9658;</span>
                 <span className="file-name">{diff.filePath}</span>
                 <span className="file-stats">
@@ -96,7 +124,13 @@ export interface CommitDetailsData {
     patch: string;
 }
 
-export function CommitDetailsView({ data }: { data: CommitDetailsData }) {
+export function CommitDetailsView({
+    data,
+    onOpenFileDiff,
+}: {
+    data: CommitDetailsData;
+    onOpenFileDiff?: (filePath: string, oldFilePath: string, isNew: boolean, isDeleted: boolean) => void;
+}) {
     const { fullHash, authorEmail, authorName, authorDate, commitDate, subject, body, patch } = data;
     const [toastVisible, setToastVisible] = useState(false);
 
@@ -151,7 +185,7 @@ export function CommitDetailsView({ data }: { data: CommitDetailsData }) {
             {diffs.length === 0 ? (
                 <p className="no-changes">No diff available.</p>
             ) : (
-                diffs.map((diff, i) => <FileDiffBlock key={i} diff={diff} />)
+                diffs.map((diff, i) => <FileDiffBlock key={i} diff={diff} onOpenFileDiff={onOpenFileDiff} />)
             )}
 
             <div id="copy-toast" className={toastVisible ? 'show' : ''}>
