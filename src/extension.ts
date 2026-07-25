@@ -323,6 +323,28 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
+        vscode.workspace.registerTextDocumentContentProvider('git-lean-show', {
+            provideTextDocumentContent(uri: vscode.Uri): Promise<string> {
+                const params = new URLSearchParams(uri.query);
+                const commit = decodeURIComponent(params.get('commit') ?? '');
+                const cwd = decodeURIComponent(params.get('cwd') ?? '');
+                if (commit === '_empty' || !commit || !cwd) return Promise.resolve('');
+                const filePath = uri.path.slice(1); // strip leading /
+                return new Promise((resolve) => {
+                    cp.execFile(
+                        'git',
+                        ['show', `${commit}:${filePath}`],
+                        { cwd, maxBuffer: 5 * 1024 * 1024 },
+                        (_err, stdout) => {
+                            resolve(stdout ?? '');
+                        },
+                    );
+                });
+            },
+        }),
+    );
+
+    context.subscriptions.push(
         vscode.commands.registerCommand('git-lean.createBranch', async (branchTreeItem: BranchTreeItem) => {
             const sourceBranch = branchTreeItem.branchName;
             if (!sourceBranch) {

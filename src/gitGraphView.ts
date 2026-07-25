@@ -224,6 +224,43 @@ export class GitGraphViewProvider implements vscode.WebviewViewProvider {
             { fullHash, authorEmail, authorName, authorDate, commitDate, subject, body, patch },
             this._extensionUri,
         );
+
+        panel.webview.onDidReceiveMessage(async (msg) => {
+            if (msg.command !== 'openFileDiff') return;
+            const { filePath, oldFilePath, isNew, isDeleted } = msg;
+            const repoRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? '';
+
+            const makeUri = (path: string, commit: string) =>
+                vscode.Uri.from({
+                    scheme: 'git-lean-show',
+                    path: '/' + path.replace(/\\/g, '/'),
+                    query: `commit=${encodeURIComponent(commit)}&cwd=${encodeURIComponent(repoRoot)}`,
+                });
+
+            const beforeUri = isNew
+                ? vscode.Uri.from({
+                      scheme: 'git-lean-show',
+                      path: '/_empty',
+                      query: `commit=_empty&cwd=${encodeURIComponent(repoRoot)}`,
+                  })
+                : makeUri(oldFilePath || filePath, `${commitHash}^`);
+
+            const afterUri = isDeleted
+                ? vscode.Uri.from({
+                      scheme: 'git-lean-show',
+                      path: '/_empty',
+                      query: `commit=_empty&cwd=${encodeURIComponent(repoRoot)}`,
+                  })
+                : makeUri(filePath, commitHash);
+
+            const label = isNew ? `(new) ${filePath}` : isDeleted ? `(deleted) ${filePath}` : filePath;
+            const title = `${label} @ ${commitHash.substring(0, 7)}`;
+
+            await vscode.commands.executeCommand('vscode.diff', beforeUri, afterUri, title, {
+                viewColumn: vscode.ViewColumn.Beside,
+                preview: true,
+            });
+        });
     }
 
     private async updateWebview(webview: vscode.Webview) {
