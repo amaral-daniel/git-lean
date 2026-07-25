@@ -83,7 +83,7 @@ export class RepositoryManager {
         this._repositories = repos;
         // Cache sorted repositories by path length (longest first) for efficient path matching
         this._sortedRepositories = [...repos].sort((a, b) => b.path.length - a.path.length);
-        
+
         // Notify listeners that repositories have changed
         this._onDidChangeRepositories.fire(repos);
 
@@ -147,7 +147,7 @@ export class RepositoryManager {
             // Use VS Code's file system API for cross-platform compatibility
             const gitPath = vscode.Uri.file(path.join(dirPath, '.git'));
             const stat = await vscode.workspace.fs.stat(gitPath);
-            return stat.type === vscode.FileType.Directory;
+            return stat.type === vscode.FileType.Directory || stat.type === vscode.FileType.File;
         } catch {
             return false;
         }

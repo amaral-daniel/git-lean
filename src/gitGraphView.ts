@@ -36,7 +36,7 @@ export class GitGraphViewProvider implements vscode.WebviewViewProvider {
         _repoManager.onDidChangeRepository(() => {
             this.refresh();
         });
-        
+
         // Refresh watchers when repositories are discovered/changed
         _repoManager.onDidChangeRepositories(() => {
             this.setupGitWatchers();

@@ -34,7 +34,7 @@ export class BranchTreeProvider implements vscode.TreeDataProvider<BranchTreeIte
         _repoManager.onDidChangeRepository(() => {
             this.refresh();
         });
-        
+
         // Refresh watchers when repositories are discovered/changed
         _repoManager.onDidChangeRepositories(() => {
             this.setupGitWatchers();
