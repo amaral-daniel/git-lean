@@ -170,6 +170,7 @@
         "test": "vitest run",
         "typecheck:webview": "tsc -p tsconfig.webview.json --noEmit",
         "package": "vsce package --no-dependencies",
+        "verify": "pnpm install --frozen-lockfile && pnpm run format:check && pnpm run lint && pnpm run typecheck:webview && pnpm run test && pnpm run package",
         "pretest": "pnpm run compile",
         "lint": "eslint src",
         "lint:fix": "eslint src --fix",

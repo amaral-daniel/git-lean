@@ -8,6 +8,7 @@
 
 ## Test plan
 
+- [ ] `pnpm run verify` passes
 - [ ] Built and loaded the extension locally (`pnpm run compile`)
 - [ ] Manually tested affected functionality in VSCode
 - [ ] Added or updated unit tests if logic changed
