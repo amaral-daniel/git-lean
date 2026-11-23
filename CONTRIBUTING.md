@@ -32,7 +32,7 @@ Before opening a PR, run:
 pnpm run verify
 ```
 
-This runs exactly what CI runs: frozen-lockfile install, prettier check, eslint, webview type-check, build + vitest, and `vsce package`. If it passes locally, the CI job passes.
+This runs the same steps as the main CI job (`Lint, Format & Build`): frozen-lockfile install, prettier check, eslint, webview type-check, build + vitest, and `vsce package`. CI also runs separate jobs (e.g. workflow linting, below) that `verify` does not cover.
 
 Individual steps:
 
