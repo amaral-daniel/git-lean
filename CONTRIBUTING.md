@@ -24,13 +24,27 @@ pnpm run watch:webview # watch webview source
 
 Press **F5** in VSCode to open an Extension Development Host with the extension loaded.
 
-## Test
+## Verify
+
+Before opening a PR, run:
 
 ```sh
-pnpm run test   # runs vitest unit tests
-pnpm run lint   # eslint
-pnpm run format:check  # prettier
+pnpm run verify
 ```
+
+This runs exactly what CI runs: frozen-lockfile install, prettier check, eslint, webview type-check, build + vitest, and `vsce package`. If it passes locally, the CI job passes.
+
+Individual steps:
+
+```sh
+pnpm run test               # build + vitest unit tests
+pnpm run lint               # eslint
+pnpm run format:check       # prettier
+pnpm run typecheck:webview  # tsc for src/webview (esbuild does not type-check)
+pnpm run package            # vsce package (catches manifest/engine errors)
+```
+
+CI also lints workflow files with [actionlint](https://github.com/rhysd/actionlint). Run `actionlint` locally if you change `.github/workflows/`.
 
 ## Project structure
 

@@ -19,27 +19,11 @@ jobs:
                   node-version: '24'
                   cache: 'pnpm'
 
-            - name: Install dependencies
-              run: pnpm install --frozen-lockfile
-
-            - name: Check formatting
-              run: pnpm run format:check
-
-            - name: Lint
-              run: pnpm run lint
-
-            - name: Type-check webview
-              run: pnpm run typecheck:webview
-
-            - name: Build
-              run: pnpm run compile
-
-            - name: Test
-              run: pnpm run test
-
-            # Same packaging checks vsce/ovsx run at publish time.
-            - name: Package extension
-              run: pnpm run package
+            # Single source of truth: the same command contributors and agents
+            # run locally (frozen install, format, lint, webview type-check,
+            # build + test, vsce package). See "verify" in package.json.
+            - name: Verify
+              run: pnpm run verify
 
     actionlint:
         name: Lint workflows
