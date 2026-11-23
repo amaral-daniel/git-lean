@@ -34,7 +34,8 @@ jobs:
               env:
                   VSCE_PAT: ${{ secrets.VSCE_PAT }}
 
+            # ovsx reads OVSX_PAT from the environment; keep it out of argv.
             - name: Verify Open VSX token
-              run: pnpm exec ovsx verify-pat "${{ steps.publisher.outputs.value }}" -p "$OVSX_PAT"
+              run: pnpm exec ovsx verify-pat "${{ steps.publisher.outputs.value }}"
               env:
                   OVSX_PAT: ${{ secrets.OVSX_PAT }}
