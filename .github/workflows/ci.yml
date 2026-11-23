@@ -28,8 +28,26 @@ jobs:
             - name: Lint
               run: pnpm run lint
 
+            - name: Type-check webview
+              run: pnpm run typecheck:webview
+
             - name: Build
               run: pnpm run compile
 
             - name: Test
               run: pnpm run test
+
+            # Same packaging checks vsce/ovsx run at publish time.
+            - name: Package extension
+              run: pnpm run package
+
+    actionlint:
+        name: Lint workflows
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v7
+            # Download script pinned to the v1.7.12 commit (tags can move).
+            - name: Run actionlint
+              run: |
+                  bash <(curl -sSfL https://raw.githubusercontent.com/rhysd/actionlint/914e7df21a07ef503a81201c76d2b11c789d3fca/scripts/download-actionlint.bash) 1.7.12
+                  ./actionlint -color

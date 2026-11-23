@@ -36,7 +36,7 @@ jobs:
               id: version
               run: |
                   VERSION=$(node -p "require('./package.json').version")
-                  echo "value=$VERSION" >> $GITHUB_OUTPUT
+                  echo "value=$VERSION" >> "$GITHUB_OUTPUT"
 
                   if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
                     echo "ERROR: Version '$VERSION' is not in x.x.x format" >&2
@@ -44,11 +44,11 @@ jobs:
                   fi
 
                   if git tag --list "v$VERSION" | grep -q .; then
-                    echo "tagged=true" >> $GITHUB_OUTPUT
+                    echo "tagged=true" >> "$GITHUB_OUTPUT"
                     exit 0
                   fi
 
-                  echo "tagged=false" >> $GITHUB_OUTPUT
+                  echo "tagged=false" >> "$GITHUB_OUTPUT"
 
                   LATEST_TAG=$(git tag --list 'v*' | sort -V | tail -1)
                   if [ -n "$LATEST_TAG" ]; then
@@ -69,19 +69,19 @@ jobs:
 
             - name: Publish to VS Code Marketplace
               if: steps.version.outputs.tagged == 'false'
-              run: pnpm dlx @vscode/vsce publish --no-dependencies --skip-duplicate
+              run: pnpm exec vsce publish --no-dependencies --skip-duplicate
               env:
                   VSCE_PAT: ${{ secrets.VSCE_PAT }}
 
             - name: Publish to Open VSX
               if: steps.version.outputs.tagged == 'false'
-              run: pnpm dlx ovsx publish --no-dependencies --skip-duplicate
+              run: pnpm exec ovsx publish --no-dependencies --skip-duplicate
               env:
                   OVSX_PAT: ${{ secrets.OVSX_PAT }}
 
             - name: Package extension
               if: steps.version.outputs.tagged == 'false'
-              run: pnpm dlx @vscode/vsce package --no-dependencies
+              run: pnpm run package
 
             - name: Tag release
               if: steps.version.outputs.tagged == 'false'
@@ -95,6 +95,6 @@ jobs:
                   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               run: |
                   gh release create "v${{ steps.version.outputs.value }}" \
-                    *.vsix \
+                    ./*.vsix \
                     --title "v${{ steps.version.outputs.value }}" \
                     --generate-notes
