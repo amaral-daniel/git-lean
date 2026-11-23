@@ -1,0 +1,40 @@
+name: Verify publish tokens
+
+# Catch expired Marketplace / Open VSX tokens before a release needs them.
+on:
+    schedule:
+        - cron: '0 6 * * 1'
+    workflow_dispatch:
+
+permissions:
+    contents: read
+
+jobs:
+    verify:
+        name: Verify VSCE_PAT and OVSX_PAT
+        runs-on: ubuntu-latest
+        environment: prod
+        steps:
+            - uses: actions/checkout@v7
+            - uses: pnpm/action-setup@v6.1.1
+            - uses: actions/setup-node@v7
+              with:
+                  node-version: '24'
+                  cache: 'pnpm'
+
+            - name: Install dependencies
+              run: pnpm install --frozen-lockfile
+
+            - name: Read publisher
+              id: publisher
+              run: echo "value=$(node -p "require('./package.json').publisher")" >> "$GITHUB_OUTPUT"
+
+            - name: Verify VS Code Marketplace token
+              run: pnpm exec vsce verify-pat "${{ steps.publisher.outputs.value }}"
+              env:
+                  VSCE_PAT: ${{ secrets.VSCE_PAT }}
+
+            - name: Verify Open VSX token
+              run: pnpm exec ovsx verify-pat "${{ steps.publisher.outputs.value }}" -p "$OVSX_PAT"
+              env:
+                  OVSX_PAT: ${{ secrets.OVSX_PAT }}
