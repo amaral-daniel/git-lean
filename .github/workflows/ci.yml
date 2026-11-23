@@ -33,3 +33,33 @@ jobs:
 
             - name: Test
               run: pnpm run test
+
+    webview-preview:
+        name: Webview preview
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v7
+            - uses: pnpm/action-setup@v6.1.1
+            - uses: actions/setup-node@v7
+              with:
+                  node-version: '24'
+                  cache: 'pnpm'
+
+            - name: Install dependencies
+              run: pnpm install --frozen-lockfile
+
+            - name: Install Chromium
+              run: pnpm exec playwright install --with-deps chromium
+
+            # Renders every webview with fixture data; fails on console errors,
+            # uncaught exceptions or an empty root.
+            - name: Check webview previews
+              run: pnpm run preview:check
+
+            - name: Upload screenshots
+              if: always()
+              uses: actions/upload-artifact@v7
+              with:
+                  name: webview-screenshots
+                  path: out/preview/screenshots/
+                  if-no-files-found: ignore
