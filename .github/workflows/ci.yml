@@ -49,7 +49,7 @@ jobs:
               run: pnpm install --frozen-lockfile
 
             - name: Install Chromium
-              run: pnpm exec playwright install --with-deps chromium
+              run: pnpm exec playwright install --with-deps --only-shell chromium
 
             # Renders every webview with fixture data; fails on console errors,
             # uncaught exceptions or an empty root.

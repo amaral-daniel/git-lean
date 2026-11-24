@@ -51,16 +51,18 @@ src/
 
 ## Previewing webviews in a browser
 
-The webviews (graph, commit details, branches) can be rendered outside VS Code with fixture data, using the real HTML/CSS generators and a mocked VS Code API:
+The webviews (graph, commit details, branches) can be rendered outside VS Code with fixture data. The harness uses the real compiled HTML/CSS generators and git log parser, keeps each page's Content Security Policy, and mocks the VS Code API:
 
 ```sh
 pnpm run preview:build   # compile + write out/preview/*.html
 pnpm run preview:serve   # http://localhost:4173/preview/  (add ?theme=light)
-pnpm run preview:check   # headless render of every view in dark + light;
-                         # fails on console errors, writes out/preview/screenshots/
+pnpm run preview:check   # headless render of every view in dark + light, plus
+                         # context-menu/search interactions; fails on console
+                         # errors, CSP violations or failed assertions;
+                         # writes out/preview/screenshots/
 ```
 
-- Fixture data: `scripts/preview/fixtures.mjs`.
+- Fixture data: `scripts/preview/fixtures.mjs` (raw git output; commits go through `out/gitParser.js`).
 - Messages the webview sends to the extension are logged to the console as `[postMessage]` and collected in `window.__messages`.
 - `window.__sendToWebview(msg)` simulates a message from the extension.
 

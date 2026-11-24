@@ -4,8 +4,11 @@
 // the markup and CSS are exactly what VS Code renders. Differences from the
 // real webview:
 //   - the `vscode` module is stubbed (scripts/preview/vscode-stub.cjs)
-//   - the CSP meta tag is removed so the mock scripts below can run
-//   - VS Code theme variables are injected (dark by default, ?theme=light)
+//   - the page's own CSP is kept; the harness script reuses the page nonce,
+//     so CSP violations (eval, unnonced scripts) fail preview:check like
+//     they would in VS Code
+//   - VS Code theme variables, the vscode-dark/vscode-light body class and
+//     the container background are approximated (dark default, ?theme=light)
 //   - acquireVsCodeApi() is mocked: postMessage calls are logged to the
 //     console and collected in window.__messages
 //   - window.__sendToWebview(msg) simulates a message from the extension
@@ -15,7 +18,7 @@ import Module from 'node:module';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { commits, commitDetails, branches } from './fixtures.mjs';
+import { gitLog, commitDetails, branches } from './fixtures.mjs';
 
 const require = createRequire(import.meta.url);
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -29,7 +32,7 @@ Module._resolveFilename = function (request, ...rest) {
     return request === 'vscode' ? stubPath : originalResolve.call(this, request, ...rest);
 };
 
-for (const f of ['out/webviewContent.js', 'out/branchWebviewProvider.js', 'out/webview/index.js']) {
+for (const f of ['out/webviewContent.js', 'out/branchWebviewProvider.js', 'out/gitParser.js', 'out/webview/index.js']) {
     if (!fs.existsSync(path.join(root, f))) {
         console.error(`Missing ${f}. Run \`pnpm run compile\` first.`);
         process.exit(1);
@@ -38,6 +41,12 @@ for (const f of ['out/webviewContent.js', 'out/branchWebviewProvider.js', 'out/w
 
 const { getHtmlForWebview, getCommitDetailsHtml } = require(path.join(root, 'out/webviewContent.js'));
 const { BranchWebviewProvider } = require(path.join(root, 'out/branchWebviewProvider.js'));
+const { parseGitLogOutput } = require(path.join(root, 'out/gitParser.js'));
+
+// The parser formats dates with toLocaleString(); pin the timezone so
+// previews (and screenshots) are the same on every machine.
+process.env.TZ = 'UTC';
+const commits = parseGitLogOutput(gitLog);
 
 const extensionUri = { path: '', toString: () => '' };
 // Pages live in out/preview/, the bundle in out/webview/.
@@ -121,21 +130,25 @@ const vars = (theme) =>
         .map(([k, v]) => `--vscode-${k}: ${v};`)
         .join(' ');
 
-const harness = `
+const harness = (nonce, surface) => `
 <style>
   html[data-theme="dark"] { ${vars(dark)} }
   html[data-theme="light"] { ${vars(light)} }
-  /* Mirrors the default styles VS Code injects into every webview. */
+  /* Approximates the container and the default styles VS Code gives webviews. */
   html {
-    background-color: var(--vscode-editor-background);
+    background-color: var(--vscode-${surface});
     color: var(--vscode-foreground);
     font-family: var(--vscode-font-family);
     font-size: var(--vscode-font-size);
   }
 </style>
-<script>
-  document.documentElement.dataset.theme =
-    new URLSearchParams(location.search).get('theme') === 'light' ? 'light' : 'dark';
+<script nonce="${nonce}">
+  const theme = new URLSearchParams(location.search).get('theme') === 'light' ? 'light' : 'dark';
+  document.documentElement.dataset.theme = theme;
+  document.addEventListener('DOMContentLoaded', () => {
+    document.body.classList.add('vscode-' + theme);
+    document.body.dataset.vscodeThemeKind = 'vscode-' + theme;
+  });
   window.__messages = [];
   window.acquireVsCodeApi = () => ({
     postMessage(message) {
@@ -148,23 +161,27 @@ const harness = `
   window.__sendToWebview = (data) => window.postMessage(data, '*');
 </script>`;
 
-function toPreview(html) {
-    const withoutCsp = html.replace(/<meta http-equiv="Content-Security-Policy"[^>]*>\s*/i, '');
-    if (withoutCsp === html) throw new Error('CSP meta tag not found; update scripts/preview/build.mjs');
-    return withoutCsp.replace(/<head>/i, `<head>${harness}`);
+function toPreview(html, surface) {
+    const nonce = html.match(/script-src 'nonce-([^']+)'/)?.[1];
+    if (!nonce) throw new Error('CSP script nonce not found; update scripts/preview/build.mjs');
+    return html.replace(/<head>/i, `<head>${harness(nonce, surface)}`);
 }
 
+// [html, background of the VS Code container the view lives in]
 const pages = {
-    graph: getHtmlForWebview(fakeWebview, commits, true, extensionUri),
-    'commit-details': getCommitDetailsHtml(fakeWebview, commitDetails, extensionUri),
-    // getHtml is private in TS but plain JS at runtime; call it without the
-    // constructor, which would start git file watchers.
-    branches: BranchWebviewProvider.prototype.getHtml.call({ _extensionUri: extensionUri }, fakeWebview, branches),
+    graph: [getHtmlForWebview(fakeWebview, commits, true, extensionUri), 'editor-background'],
+    'commit-details': [getCommitDetailsHtml(fakeWebview, commitDetails, extensionUri), 'editor-background'],
+    // Sidebar view. getHtml is private in TS but plain JS at runtime; call it
+    // without the constructor, which would start git file watchers.
+    branches: [
+        BranchWebviewProvider.prototype.getHtml.call({ _extensionUri: extensionUri }, fakeWebview, branches),
+        'sideBar-background',
+    ],
 };
 
 fs.mkdirSync(outDir, { recursive: true });
-for (const [name, html] of Object.entries(pages)) {
-    fs.writeFileSync(path.join(outDir, `${name}.html`), toPreview(html));
+for (const [name, [html, surface]] of Object.entries(pages)) {
+    fs.writeFileSync(path.join(outDir, `${name}.html`), toPreview(html, surface));
 }
 
 const links = Object.keys(pages)

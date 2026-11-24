@@ -13,19 +13,49 @@ import { startServer } from './serve.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const shotsDir = path.join(root, 'out', 'preview', 'screenshots');
+// Start clean so stale screenshots from an earlier run can't be mistaken for this one.
+fs.rmSync(shotsDir, { recursive: true, force: true });
 fs.mkdirSync(shotsDir, { recursive: true });
 
 const pages = ['graph', 'commit-details', 'branches'];
 const themes = ['dark', 'light'];
 
-// Extra states worth a screenshot: [page, name, action]
+function assert(condition, message) {
+    if (!condition) throw new Error(message);
+}
+
+// Interactions: [page, name, action]. Each action drives the UI, asserts the
+// outcome (throws on failure), and gets a screenshot of the resulting state.
 const interactions = [
-    ['graph', 'context-menu', (p) => p.locator('tbody tr').first().click({ button: 'right' })],
-    ['graph', 'search', (p) => p.locator('.search-input').fill('deps')],
+    [
+        'graph',
+        'context-menu',
+        async (p) => {
+            await p.locator('tbody tr').first().click({ button: 'right' });
+            await p.locator('.context-menu').waitFor({ state: 'visible' });
+            assert((await p.locator('.context-menu-item').count()) > 0, 'context menu has no items');
+        },
+    ],
+    [
+        'graph',
+        'search',
+        async (p) => {
+            const before = await p.locator('tbody tr').count();
+            await p.locator('.search-input').fill('deps');
+            await p.waitForFunction((n) => document.querySelectorAll('tbody tr').length < n, before);
+            const texts = await p.locator('tbody tr .message-text').allTextContents();
+            assert(texts.length > 0, 'search for "deps" matched no rows');
+            assert(
+                texts.every((t) => t.toLowerCase().includes('deps')),
+                'search returned rows that do not match',
+            );
+        },
+    ],
 ];
 
-const port = Number(process.env.PORT ?? 4173);
-const server = await startServer(port);
+// Port 0 = any free port, so a running preview:serve does not clash.
+const server = await startServer(Number(process.env.PORT ?? 0));
+const port = server.address().port;
 const browser = await launchBrowser();
 const failures = [];
 
@@ -50,8 +80,8 @@ async function open(pageName, theme) {
     page.on('pageerror', (err) => errors.push(err.message));
     await page.goto(`http://127.0.0.1:${port}/preview/${pageName}.html?theme=${theme}`);
     await page.waitForLoadState('networkidle');
-    const rendered = await page.locator('#root > *').count();
-    if (rendered === 0) errors.push('#root is empty (webview did not render)');
+    const text = (await page.locator('#root').innerText()).trim();
+    if (!text) errors.push('#root has no visible text (webview did not render)');
     return { page, errors };
 }
 

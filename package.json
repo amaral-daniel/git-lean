@@ -174,8 +174,8 @@
         "pretest": "pnpm run compile",
         "lint": "eslint src",
         "lint:fix": "eslint src --fix",
-        "format": "prettier --write src",
-        "format:check": "prettier --check src"
+        "format": "prettier --write src scripts",
+        "format:check": "prettier --check src scripts"
     },
     "devDependencies": {
         "@types/node": "^26.6.6",
