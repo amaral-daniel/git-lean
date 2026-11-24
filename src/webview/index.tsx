@@ -3,6 +3,7 @@ import { GraphView } from './graph/GraphView';
 import { CommitDetailsView, CommitDetailsData } from './commitDetails/CommitDetailsView';
 import { BranchPanel, Branch } from './branches/BranchPanel';
 import { GitCommit } from './types';
+import { vscode } from './vscodeApi';
 
 declare global {
     interface Window {
@@ -20,7 +21,14 @@ const r = createRoot(root);
 if (window.__VIEW__ === 'graph') {
     r.render(<GraphView commits={window.__COMMITS__} hasMore={window.__HAS_MORE__} />);
 } else if (window.__VIEW__ === 'commitDetails') {
-    r.render(<CommitDetailsView data={window.__COMMIT_DETAILS__} />);
+    r.render(
+        <CommitDetailsView
+            data={window.__COMMIT_DETAILS__}
+            onOpenFileDiff={(filePath, oldFilePath, isNew, isDeleted) => {
+                vscode.postMessage({ command: 'openFileDiff', filePath, oldFilePath, isNew, isDeleted });
+            }}
+        />,
+    );
 } else if (window.__VIEW__ === 'branches') {
     r.render(<BranchPanel branches={window.__BRANCHES__} />);
 }
