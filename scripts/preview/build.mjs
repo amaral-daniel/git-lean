@@ -43,8 +43,9 @@ const { getHtmlForWebview, getCommitDetailsHtml } = require(path.join(root, 'out
 const { BranchWebviewProvider } = require(path.join(root, 'out/branchWebviewProvider.js'));
 const { parseGitLogOutput } = require(path.join(root, 'out/gitParser.js'));
 
-// The parser formats dates with toLocaleString(); pin the timezone so
-// previews (and screenshots) are the same on every machine.
+// The parser formats dates with toLocaleString(); pin the timezone so dates
+// don't shift between machines. The date format still follows the system
+// locale (Node reads it at startup).
 process.env.TZ = 'UTC';
 const commits = parseGitLogOutput(gitLog);
 

@@ -17,6 +17,8 @@ function resolveInRoot(pathname) {
     } catch {
         return { status: 400 };
     }
+    // A NUL byte makes fs throw synchronously, which would crash the server.
+    if (decoded.includes('\0')) return { status: 400 };
     const file = path.resolve(root, '.' + decoded);
     const rel = path.relative(root, file);
     if (rel.startsWith('..') || path.isAbsolute(rel)) return { status: 403 };
